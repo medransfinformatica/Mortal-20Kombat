@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0b0b0b" />
+<meta name="description" content="Mortal Kombat para Sega Genesis/Mega Drive jugable en el navegador con EmulatorJS." />
+<title>Mortal Kombat · Sega Genesis en tu navegador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0b0b0b;
+    --panel:#121212;
+    --panel-2:#181818;
+    --line:#2a231c;
+    --gold:#d4af37;
+    --gold-soft:#f0d97a;
+    --gold-dark:#8a6d1f;
+    --red:#c62828;
+    --text:#e9e3d6;
+    --muted:#9a917f;
+    --font-pixel:'Press Start 2P', monospace;
+    --font-ui:'Rajdhani','Segoe UI',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(1100px 520px at 50% -8%, rgba(198,40,40,.20), transparent 62%),
+      radial-gradient(900px 620px at 50% 108%, rgba(212,175,55,.10), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:26px;
+    padding:30px 16px 34px;
+  }
+  .vignette{position:fixed;inset:0;pointer-events:none;z-index:5;background:radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%)}
+  .scanlines{position:fixed;inset:0;pointer-events:none;z-index:6;opacity:.16;background:repeating-linear-gradient(to bottom, rgba(0,0,0,.9) 0 1px, transparent 1px 3px)}
+
+  .hero{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;z-index:1}
+  .emblem{
+    width:74px;height:74px;border-radius:50%;display:grid;place-items:center;
+    background:radial-gradient(circle at 50% 35%, #2a1212, #120808);
+    border:3px solid var(--gold-dark);
+    box-shadow:0 0 0 4px #000, 0 0 22px rgba(212,175,55,.35), inset 0 0 18px rgba(0,0,0,.9);
+  }
+  .emblem span{
+    font-family:var(--font-pixel);font-size:19px;letter-spacing:1px;
+    background:linear-gradient(180deg,#fff4c2,#f0d97a 40%,#c8a44d 65%,#8a6d1f);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 6px rgba(255,60,60,.5));
+  }
+  .title{
+    margin:0;font-family:var(--font-pixel);font-size:clamp(20px,5vw,42px);letter-spacing:2px;line-height:1.15;
+    background:linear-gradient(180deg,#fff6cd 0%,#f2dd8b 30%,#c9a54e 55%,#8a6d1f 78%,#f0d97a 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 3px 0 #000) drop-shadow(0 0 18px rgba(198,40,40,.55));
+  }
+  .subtitle{margin:0;color:var(--muted);font-weight:600;letter-spacing:2.5px;text-transform:uppercase;font-size:clamp(11px,1.6vw,14px)}
+  .badges{list-style:none;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:2px 0 0;padding:0}
+  .badges li{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);background:#111;border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+  .badges b{color:var(--gold)}
+
+  main{width:100%;display:flex;flex-direction:column;align-items:center;gap:26px;z-index:1}
+
+  .stage-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%}
+  .stage{
+    position:relative;
+    width:min(94vw, 960px, calc((100vh - 330px) * 4 / 3));
+    aspect-ratio:4 / 3;
+    background:#000;
+    border:2px solid var(--gold-dark);
+    border-radius:8px;
+    overflow:hidden;
+    box-shadow:
+      0 0 0 5px #0e0e0e,
+      0 0 0 7px rgba(198,40,40,.75),
+      0 0 45px rgba(198,40,40,.28),
+      0 26px 60px rgba(0,0,0,.85);
+  }
+  .stage::after{content:"";position:absolute;inset:6px;border:1px solid rgba(212,175,55,.18);border-radius:4px;pointer-events:none;z-index:3}
+  #game{position:absolute;inset:0;width:100%;height:100%}
+  .hint{margin:0;color:var(--muted);font-size:13px;letter-spacing:1px;text-align:center}
+  .hint b{color:var(--gold)}
+
+  .panel{
+    width:min(94vw,960px);
+    background:linear-gradient(180deg, rgba(255,255,255,.02), transparent 40%), var(--panel);
+    border:1px solid var(--line);
+    border-top:3px solid var(--red);
+    border-radius:10px;
+    padding:20px 22px 18px;
+    box-shadow:0 18px 45px rgba(0,0,0,.6);
+  }
+  .panel-title{margin:0 0 16px;font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:var(--gold);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .panel-title span{font-family:var(--font-ui);font-size:12px;color:var(--muted);letter-spacing:3px;text-transform:uppercase}
+
+  .controls{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .ctrl{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+  .ctrl h3{margin:0;font-family:var(--font-pixel);font-size:10px;color:var(--gold-soft);letter-spacing:1px}
+  .ctrl p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+  .ctrl p b{color:var(--text)}
+
+  kbd{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:42px;height:42px;padding:0 10px;
+    font-family:var(--font-pixel);font-size:11px;color:var(--gold-soft);
+    background:linear-gradient(180deg,#242424,#131313);
+    border:2px solid var(--gold-dark);border-radius:7px;
+    box-shadow:0 4px 0 #000, inset 0 1px 0 rgba(255,255,255,.07);
+    transition:transform .06s ease, box-shadow .06s ease, border-color .2s ease;
+  }
+  kbd:hover{border-color:var(--red)}
+  kbd:active{transform:translateY(3px);box-shadow:0 1px 0 #000}
+  .keys{display:flex;gap:10px}
+  kbd.wide{min-width:96px}
+
+  .dpad{display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(2,42px);gap:6px}
+  .dpad kbd{min-width:42px;padding:0}
+  .dpad .up{grid-column:2;grid-row:1}
+  .dpad .left{grid-column:1;grid-row:2}
+  .dpad .down{grid-column:2;grid-row:2}
+  .dpad .right{grid-column:3;grid-row:2}
+
+  .note{margin:14px 0 0;padding-top:12px;border-top:1px dashed var(--line);color:var(--muted);font-size:12.5px;letter-spacing:.6px;text-align:center}
+  .note b{color:var(--gold-soft)}
+
+  .foot{color:#6f6656;font-size:12px;text-align:center;letter-spacing:1px;z-index:1;max-width:760px}
+  .foot b{color:var(--gold)}
+
+  @media (max-width:820px){
+    body{padding:20px 12px 26px;gap:20px}
+    .controls{grid-template-columns:1fr}
+    .stage{width:min(96vw, calc((100vh - 300px) * 4 / 3))}
+    .panel{padding:16px}
+  }
+  @media (max-width:420px){
+    .emblem{width:60px;height:60px}
+    .emblem span{font-size:16px}
+    kbd{min-width:38px;height:38px}
+    .dpad{grid-template-columns:repeat(3,38px);grid-template-rows:repeat(2,38px)}
+  }
+</style>
+</head>
+<body>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <header class="hero">
+    <div class="emblem" aria-hidden="true"><span>MK</span></div>
+    <h1 class="title">MORTAL KOMBAT</h1>
+    <p class="subtitle">Sega Genesis · Mega Drive — Arcade en tu navegador</p>
+    <ul class="badges">
+      <li>Core <b>segaMD</b></li>
+      <li>ROM <b>mortal_kombat.md</b></li>
+      <li>Motor <b>EmulatorJS</b></li>
+    </ul>
+  </header>
+
+  <main>
+    <section class="stage-wrap" aria-label="Zona de juego">
+      <div class="stage">
+        <div id="game"></div>
+      </div>
+      <p class="hint">Pulsa <b>JUGAR</b> para encender la consola · La primera vez se descarga el núcleo (WASM)</p>
+    </section>
+
+    <section class="panel" aria-labelledby="controls-title">
+      <h2 id="controls-title" class="panel-title">CONTROLES <span>teclado</span></h2>
+      <div class="controls">
+        <article class="ctrl">
+          <div class="dpad" aria-hidden="true">
+            <kbd class="up">↑</kbd>
+            <kbd class="left">←</kbd>
+            <kbd class="down">↓</kbd>
+            <kbd class="right">→</kbd>
+          </div>
+          <h3>MOVIMIENTO</h3>
+          <p>Camina, salta (↑) y agáchate (↓). Diagonal para saltar hacia delante/atrás.</p>
+        </article>
+        <article class="ctrl">
+          <div class="keys" aria-hidden="true"><kbd class="wide">Enter</kbd></div>
+          <h3>START</h3>
+          <p>Empieza la partida y confirma. También activa el <b>bloqueo</b>.</p>
+        </article>
+        <article class="ctrl">
+          <div class="keys" aria-hidden="true"><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+          <h3>ATAQUES</h3>
+          <p><b>A</b> golpe (puñetazo) · <b>S</b> patada baja · <b>D</b> patada alta.</p>
+        </article>
+      </div>
+      <p class="note">Mando de 6 botones: <b>W</b> golpe alto · <b>Q</b> bloqueo · <b>E</b> patada alta. Remapea en ⚙ Ajustes → Controles. En móvil aparece un mando táctil.</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Powered by <b>EmulatorJS</b> · Requiere internet la primera carga · Usa solo ROMs que poseas legalmente.</p>
+  </footer>
+
+  <noscript>Necesitas JavaScript activado para ejecutar el emulador.</noscript>
+
+  <script>
+  (function () {
+    var CDN = 'https://cdn.emulatorjs.org/stable/data/';
+    var ROMS = ['mortal_kombat.md', 'Mortal Kombat (World).md'];
+
+    window.EJS_player = '#game';
+    window.EJS_core = 'segaMD';
+    window.EJS_pathtodata = CDN;
+    window.EJS_gameName = 'Mortal Kombat';
+    window.EJS_color = '#d4af37';
+    window.EJS_backgroundColor = '#0b0b0b';
+    window.EJS_controlScheme = 'segaMD';
+    window.EJS_startButtonName = 'JUGAR';
+    window.EJS_language = 'es-419';
+    window.EJS_volume = 0.7;
+
+    window.EJS_defaultControls = {
+      0: {
+        0:  { value: 's',         value2: 'BUTTON_2' },
+        1:  { value: 'a',         value2: 'BUTTON_4' },
+        2:  { value: 'v',         value2: 'SELECT' },
+        3:  { value: 'enter',     value2: 'START' },
+        4:  { value: 'up arrow',  value2: 'DPAD_UP' },
+        5:  { value: 'down arrow',value2: 'DPAD_DOWN' },
+        6:  { value: 'left arrow',value2: 'DPAD_LEFT' },
+        7:  { value: 'right arrow',value2: 'DPAD_RIGHT' },
+        8:  { value: 'd',         value2: 'BUTTON_1' },
+        9:  { value: 'q',         value2: 'BUTTON_3' },
+        10: { value: 'w',         value2: 'LEFT_TOP_SHOULDER' },
+        11: { value: 'e',         value2: 'RIGHT_TOP_SHOULDER' },
+        12: { value: 'tab',       value2: 'LEFT_BOTTOM_SHOULDER' },
+        13: { value: 'r',         value2: 'RIGHT_BOTTOM_SHOULDER' },
+        14: { value: '',          value2: 'LEFT_STICK' },
+        15: { value: '',          value2: 'RIGHT_STICK' },
+        16: { value: 'h',         value2: 'LEFT_STICK_X:+1' },
+        17: { value: 'f',         value2: 'LEFT_STICK_X:-1' },
+        18: { value: 'g',         value2: 'LEFT_STICK_Y:+1' },
+        19: { value: 't',         value2: 'LEFT_STICK_Y:-1' },
+        20: { value: 'l',         value2: 'RIGHT_STICK_X:+1' },
+        21: { value: 'j',         value2: 'RIGHT_STICK_X:-1' },
+        22: { value: 'k',         value2: 'RIGHT_STICK_Y:+1' },
+        23: { value: 'i',         value2: 'RIGHT_STICK_Y:-1' },
+        24: { value: '1' },
+        25: { value: '2' },
+        26: { value: '3' },
+        27: { value: 'add' },
+        28: { value: 'space' },
+        29: { value: 'subtract' }
+      },
+      1: {}, 2: {}, 3: {}
+    };
+
+    function boot(url) {
+      window.EJS_gameUrl = url;
+      var script = document.createElement('script');
+      script.src = CDN + 'loader.js';
+      document.head.appendChild(script);
+    }
+
+    function exists(url) {
+      return fetch(url, { method: 'HEAD' })
+        .then(function (res) { return res.ok; })
+        .catch(function () { return false; });
+    }
+
+    (function pick(i) {
+      if (i >= ROMS.length) { boot(ROMS[0]); return; }
+      exists(ROMS[i]).then(function (ok) { ok ? boot(ROMS[i]) : pick(i + 1); });
+    })(0);
+  })();
+  </script>
+</body>
+</html>
